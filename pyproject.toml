@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wafle-gmail-reader"
+version = "0.1.0"
+description = "WAFLE Gmail confirmation code reader — reads 2FA codes from Gmail inbox"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [{name = "WAFLE"}]
+requires-python = ">=3.10"
+keywords = ["wafle", "gmail", "2fa", "confirmation-code", "automation", "playwright"]
+dependencies = [
+    "playwright>=1.60.0",
+    "requests>=2.31.0",
+    "wafle-scraper>=0.1.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/creandoaldia/wafle-gmail-reader"
+Repository = "https://github.com/creandoaldia/wafle-gmail-reader"
+Documentation = "https://github.com/creandoaldia/wafle-gmail-reader#readme"
+
+[project.scripts]
+wafle-gmail-reader = "waflegmailreader.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["waflegmailreader*"]
