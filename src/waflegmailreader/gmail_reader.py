@@ -27,10 +27,17 @@ def _extract_code(text: str) -> Optional[str]:
       - Fallback: first 6-digit number found
     """
     patterns = [
+        # "999731 is your Meta confirmation code"
         r"(\d{4,8})(?:\s*(?:is|es)\s*your\s*(?:Meta|Google|confirmation|verification)\s*code)",
+        # "Meta code: 999731" / "código: 999731"
         r"(?:Meta|Google|confirmation|verification|security)\s*(?:code|código|codigo)\s*(?::|is|es)\s*(\d{4,8})",
+        # "999731 es tu Meta code" / "999731 is your login code"
         r"(\d{4,8})\s*(?:is|es)\s*(?:your|tu)\s*(?:Meta|login|confirmation)",
-        r"(?:código|codigo|code)[:\s]*(\d{4,8})",
+        # "código: 999731" / "codigo 999731"
+        r"(?:código|codigo|code|sesión|session)[:\s]*(\d{4,8})",
+        # "Código de inicio de sesión 999731" (Meta email format)
+        r"(?:código|codigo|code)[^0-9]*(\d{4,8})",
+        # Fallback: first 6-digit number found
         r"(\d{6})",
     ]
     for p in patterns:
@@ -145,23 +152,43 @@ def _poll_inbox(page, sender_hint: str, max_wait: int, poll_interval: int, steal
 
 
 def _search_emails(page, sender_hint: str, stealth):
+    search_terms = [sender_hint]
+    if sender_hint.lower() == "meta":
+        search_terms = ["Meta", "facebookmail", "security@facebook"]
+    elif sender_hint.lower() == "google":
+        search_terms = ["Google", "security@google", "no-reply@google"]
+
     try:
         search_box = page.locator("input[aria-label*='search']")
         if not search_box.count():
             search_box = page.locator("input[name='q']")
         if search_box.count():
-            search_box.click()
-            search_box.fill("")
-            stealth.human_delay(0.2, 0.4)
-            search_box.fill(sender_hint)
-            stealth.human_delay(0.3, 0.6)
-            search_box.press("Enter")
-            stealth.human_delay(3.0, 4.0)
+            for term in search_terms:
+                search_box.click()
+                search_box.fill("")
+                stealth.human_delay(0.2, 0.4)
+                search_box.fill(term)
+                stealth.human_delay(0.3, 0.6)
+                search_box.press("Enter")
+                stealth.human_delay(2.0, 3.0)
+                # Check if there are results
+                first = page.locator("tr.zA").first
+                if first.count():
+                    return
     except Exception as e:
         logger.warning(f"Search failed: {e}")
-        page.goto(f"https://mail.google.com/mail/u/0/#search/{sender_hint}",
-                  wait_until="domcontentloaded")
-        stealth.human_delay(2.0, 3.0)
+
+    # Fallback: navigate directly to search URL
+    for term in search_terms:
+        try:
+            page.goto(f"https://mail.google.com/mail/u/0/#search/{term}",
+                      wait_until="domcontentloaded")
+            stealth.human_delay(2.0, 3.0)
+            first = page.locator("tr.zA").first
+            if first.count():
+                return
+        except Exception:
+            continue
 
 
 def _read_latest_email(page, stealth) -> Optional[str]:
